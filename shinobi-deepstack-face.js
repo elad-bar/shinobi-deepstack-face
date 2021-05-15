@@ -153,7 +153,9 @@ s.detectObject = function(buffer,d,tx,frameLocation,callback){
 						})
 					})		   
 				}
-				
+
+				var shouldTrigger = (unknownCount + identified.length) > 0
+
 				if(unknownCount > 0) {
 					console.log(`${unknownCount} unknown faces detected by ${d.id}`)
 				}
@@ -164,24 +166,26 @@ s.detectObject = function(buffer,d,tx,frameLocation,callback){
 					console.log(`${d.id} identified faces: ${identifiedStr}`)
 				}
 
-				var isObjectDetectionSeparate = d.mon.detector_pam === '1' && d.mon.detector_use_detect_object === '1'
-				var width = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_y_object ? d.mon.detector_scale_y_object : d.mon.detector_scale_y)
-				var height = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_x_object ? d.mon.detector_scale_x_object : d.mon.detector_scale_x)
-				
-				tx({
-					f:'trigger',
-					id:d.id,
-					ke:d.ke,
-					details:{
-						plug:config.plug,
-						name: `DeepStack-Face`,
-						reason:'face',
-						matrices:mats,
-						imgHeight:width,
-						imgWidth:height,
-						time: responseTime
-					}
-				})
+                if (shouldTrigger) {
+                    var isObjectDetectionSeparate = d.mon.detector_pam === '1' && d.mon.detector_use_detect_object === '1'
+                    var width = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_y_object ? d.mon.detector_scale_y_object : d.mon.detector_scale_y)
+                    var height = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_x_object ? d.mon.detector_scale_x_object : d.mon.detector_scale_x)
+
+                    tx({
+                        f:'trigger',
+                        id:d.id,
+                        ke:d.ke,
+                        details:{
+                            plug:config.plug,
+                            name: `DeepStack-Face`,
+                            reason:'face',
+                            matrices:mats,
+                            imgHeight:width,
+                            imgWidth:height,
+                            time: responseTime
+                        }
+                    })
+				}
 			})
 		}catch(err){
 			console.log(err)
