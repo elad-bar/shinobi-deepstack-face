@@ -64,6 +64,51 @@ const getRequestDuration = (timeStart) => {
 	return responseTime;
 };
 
+const getDeepStackObject = (prediction, tagName) => {
+    var label = prediction[tagName];
+    var confidence = prediction["confidence"];
+    var y_min = prediction["y_min"];
+    var x_min = prediction["x_min"];
+    var y_max = prediction["y_max"];
+    var x_max = prediction["x_max"];
+    var width = x_max - x_min;
+    var height = y_max - y_min;
+    
+    var obj = {
+        x: x_min,
+        y: y_min,
+        width: width,
+        height: height,
+        tag: label,
+        confidence: confidence,
+    };
+
+    return obj;
+};
+
+const publishEvent = (d, reason, duration, matrices, tx) => {
+    var isObjectDetectionSeparate = d.mon.detector_pam === '1' && d.mon.detector_use_detect_object === '1'
+    var width = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_y_object ? d.mon.detector_scale_y_object : d.mon.detector_scale_y)
+    var height = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_x_object ? d.mon.detector_scale_x_object : d.mon.detector_scale_x)
+
+    var eventData = {
+        f:'trigger',
+        id:d.id,
+        ke:d.ke,
+        details: {
+            plug: config.plug,
+            name: d.id,
+            reason: reason,
+            matrices: matrices,
+            imgHeight: width,
+            imgWidth: height,
+            time: duration
+        }
+    };
+    
+    tx(eventData);
+};
+
 const onFaceListResult = (err, res, body, timeStart) => {
     var duration = getRequestDuration(timeStart);
 
@@ -101,27 +146,7 @@ const onFaceRecognitionResult = (err, res, body, timeStart, d, tx) => {
             var faces = [];
 
             if(predictions !== null && predictions.length > 0) {
-                faces = predictions.map(v => {
-                    var userId = v["userid"];
-                    var confidence = v["confidence"];
-                    var y_min = v["y_min"];
-                    var x_min = v["x_min"];
-                    var y_max = v["y_max"];
-                    var x_max = v["x_max"];
-                    var width = x_max - x_min;
-                    var height = y_max - y_min;
-
-                    var face = {
-                        x: x_min,
-                        y: y_min,
-                        width: width,
-                        height: height,
-                        tag: userId,
-                        confidence: confidence,
-                    };
-
-                    return face;
-                });
+                faces = predictions.map(p => getDeepStackObject(p, "userid"));
             }
 
             var unknownFacesCount = faces.filter(p => p.tag === "unknown").length;
@@ -141,26 +166,7 @@ const onFaceRecognitionResult = (err, res, body, timeStart, d, tx) => {
             var shouldTrigger = faces !== null && faces.length > 0;
 
             if (shouldTrigger) {
-                var isObjectDetectionSeparate = d.mon.detector_pam === '1' && d.mon.detector_use_detect_object === '1'
-                var width = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_y_object ? d.mon.detector_scale_y_object : d.mon.detector_scale_y)
-                var height = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_x_object ? d.mon.detector_scale_x_object : d.mon.detector_scale_x)
-
-                var eventData = {
-                    f:'trigger',
-                    id:d.id,
-                    ke:d.ke,
-                    details: {
-                        plug:config.plug,
-                        name: d.id,
-                        reason:'face',
-                        matrices: faces,
-                        imgHeight:width,
-                        imgWidth:height,
-                        time: duration
-                    }
-                };
-                
-                tx(eventData);
+                publishEvent(d, "face", duration, faces, tx);
             }
         }
     } catch(ex) {
@@ -185,27 +191,7 @@ const onObjectDetetctionResult = (err, res, body, timeStart, d, tx) => {
             var objects = [];
 
             if(predictions !== null && predictions.length > 0) {
-                objects = predictions.map(v => {
-                    var label = v["label"];
-                    var confidence = v["confidence"];
-                    var y_min = v["y_min"];
-                    var x_min = v["x_min"];
-                    var y_max = v["y_max"];
-                    var x_max = v["x_max"];
-                    var width = x_max - x_min;
-                    var height = y_max - y_min;
-                    
-                    var obj = {
-                        x: x_min,
-                        y: y_min,
-                        width: width,
-                        height: height,
-                        tag: label,
-                        confidence: confidence,
-                    };
-
-                    return obj;
-                });
+                objects = predictions.map(p => getDeepStackObject(p, "label"));
             }
 
             if(objects.length > 0) {
@@ -213,27 +199,8 @@ const onObjectDetetctionResult = (err, res, body, timeStart, d, tx) => {
                 var detectedObjectsStr = detectedObjectsStrArr.join(",");
 
                 console.log(`${d.id} detected objects: ${detectedObjectsStr}, Response time: ${duration} ms`);
-            
-                var isObjectDetectionSeparate = d.mon.detector_pam === '1' && d.mon.detector_use_detect_object === '1'
-                var width = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_y_object ? d.mon.detector_scale_y_object : d.mon.detector_scale_y)
-                var height = parseFloat(isObjectDetectionSeparate  && d.mon.detector_scale_x_object ? d.mon.detector_scale_x_object : d.mon.detector_scale_x)
-
-                var eventData = {
-                    f:'trigger',
-                    id:d.id,
-                    ke:d.ke,
-                    details: {
-                        plug:config.plug,
-                        name: d.id,
-                        reason:'object',
-                        matrices: faces,
-                        imgHeight:width,
-                        imgWidth:height,
-                        time: duration
-                    }
-                };
                 
-                tx(eventData);
+                publishEvent(d, "object", duration, objects, tx);
             }
         }
     } catch(ex) {
