@@ -77,15 +77,14 @@ const faceDetectionStartup = () => {
     logInfo(`Face Recognition: ${faceRecognitionUrl}`);
     
     const requestData = getFormData(faceListUrl, {});
-    const timeStart = new Date();
-
-    request.post(requestData, function (err,res,body) {
-        onFaceListResult(err, res, body, timeStart);
+    
+    request.post(requestData, (err, res, body) => {
+        onFaceListResult(err, res, body);
     });
 };
 
-const onFaceListResult = (err, res, body, timeStart) => {
-    const duration = getRequestDuration(timeStart);
+const onFaceListResult = (err, res, body) => {
+    const duration = res.elapsedTime;
 
     try {
         const response = JSON.parse(body);
@@ -152,10 +151,9 @@ const detect = (d, tx, frame, callback) => {
         
         const url = getDetectionUrl();
         const requestData = getFormData(url, form);
-        const timeStart = new Date();
-
-        request.post(requestData, function(err, res, body){
-            handleDeepStackResponse(d, tx, err, body, timeStart);
+        
+        request.post(requestData, (err, res, body) => {
+            handleDeepStackResponse(d, tx, err, res, body);
         });
     }catch(ex){
         logError(`Detector error, Error: ${ex}`);
@@ -164,8 +162,8 @@ const detect = (d, tx, frame, callback) => {
     callback();
 };
 
-const handleDeepStackResponse = (d, tx, err, body, timeStart) => {
-    const duration = getRequestDuration(timeStart);
+const handleDeepStackResponse = (d, tx, err, res, body) => {
+    const duration = res.elapsedTime;
     let objects = [];
     
     try {
@@ -243,18 +241,11 @@ const getFormData = (url, additionalParameters) => {
 
     const requestData = {
         url: url,
+        time: true,
         formData: formData
     };
 
     return requestData;
-};
-
-const getRequestDuration = (timeStart) => {
-    const responseDate = new Date();
-
-	const responseTime = (responseDate.getTime() - timeStart.getTime());
-
-	return responseTime;
 };
 
 const getDeepStackObject = (prediction) => {
