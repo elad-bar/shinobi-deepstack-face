@@ -206,7 +206,7 @@ const detectObject = (buffer, d, tx, frameLocation, callback) => {
         };
 
         d.dir = `${s.dir.streams}${d.ke}/${d.id}/`;
-        d.tmpFile = detectorSettings.filePattern.replace("*", moment().format());
+        d.tmpFile = CLEANUP_PATTERN.replace("*", moment().format());
 
         const fullPath = `${d.dir}${d.tmpFile}`;
 
